@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VehicleShield AI + EmergencyNet 4.0 — Integrated Smart Safety Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<!-- SMS API CONFIG NOTICE -->
+<div id="sms-cfg-notice">
+  <span>📱 REAL SMS OTP SYSTEM:</span>
+  <div class="cfg-api-row">
+    <input type="text" id="fast2sms-key" placeholder="Enter Fast2SMS API Key (free at fast2sms.com) → Routes → Flash/DND" value=""/>
+    <button class="cfg-save-btn" onclick="saveSMSKey()">💾 SAVE KEY</button>
+  </div>
+  <span id="sms-mode-lbl" class="sms-mode-badge demo">⚠ DEMO MODE</span>
+  <span class="cfg-close" onclick="document.getElementById('sms-cfg-notice').style.display='none'">✕</span>
+</div>
+
+<!-- PORTAL -->
+<div id="portal" style="margin-top:44px">
+  <div class="portal-bg"></div>
+  <div class="portal-logo">
+    <div class="main-title">VEHICLE<span class="danger">SHIELD</span> AI</div>
+    <span class="sub1">+ EMERGENCY<span style="color:var(--red)">NET</span> 4.0 — INTEGRATED SMART SAFETY PLATFORM</span>
+    <span class="sub2">REAL SMS OTP · GPS TRACKING · AI FRAUD DETECTION · EMERGENCY DISPATCH</span>
+  </div>
+  <div class="portal-cards">
+    <div class="pcard cyan" onclick="showStaffLogin('admin')">
+      <span class="pcard-icon" style="color:var(--cyan)">🛡️</span>
+      <h2>ADMIN</h2>
+      <p>System management & full control</p>
+    </div>
+    <div class="pcard red" onclick="showStaffLogin('police')">
+      <span class="pcard-icon" style="color:var(--red)">🚔</span>
+      <h2>POLICE</h2>
+      <p>Fraud alerts, suspect vehicles & dispatch</p>
+    </div>
+    <div class="pcard amber" onclick="showStaffLogin('hospital')">
+      <span class="pcard-icon" style="color:var(--amber)">🏥</span>
+      <h2>HOSPITAL</h2>
+      <p>Emergency response & ambulance control</p>
+    </div>
+    <div class="pcard green" onclick="showUserAuth()">
+      <span class="pcard-icon" style="color:var(--green)">👤</span>
+      <h2>CITIZEN</h2>
+      <p>Register vehicle & emergency SOS</p>
+    </div>
+  </div>
+</div>
+
+<!-- STAFF AUTH -->
+<div class="auth-overlay" id="staff-auth">
+  <div class="auth-box cyan-box" style="max-width:420px">
+    <div class="auth-head cyan">
+      <span class="icon" id="staff-auth-icon">🛡️</span>
+      <h1 id="staff-auth-title">ADMIN LOGIN</h1>
+      <p>SECURE STAFF ACCESS — AUTHORIZED PERSONNEL ONLY</p>
+    </div>
+    <div style="margin-bottom:8px">
+      <div class="role-btns">
+        <button class="rbtn active" id="rb-admin" onclick="selRole(this,'admin')">🛡 ADMIN</button>
+        <button class="rbtn" id="rb-police" onclick="selRole(this,'police')">🚔 POLICE</button>
+        <button class="rbtn" id="rb-hospital" onclick="selRole(this,'hospital')">🏥 HOSPITAL</button>
+        <button class="rbtn" id="rb-fire" onclick="selRole(this,'fire')">🚒 FIRE</button>
+      </div>
+    </div>
+    <label class="f-label">Username</label>
+    <input class="f-input" id="s-user" placeholder="Enter username"/>
+    <label class="f-label">Password</label>
+    <input class="f-input" type="password" id="s-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doStaffLogin()"/>
+    <button class="f-btn cyan" onclick="doStaffLogin()">🔐 ACCESS SYSTEM</button>
+    <div class="f-err" id="s-err">⛔ Invalid credentials</div>
+    <div style="text-align:center;margin-top:10px;font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">admin/admin123 · police/police123 · hospital/hospital123 · fire/fire123</div>
+    <div class="back-link" onclick="backToPortal()">← BACK TO PORTAL</div>
+  </div>
+</div>
+
+<!-- USER AUTH -->
+<div class="auth-overlay" id="user-auth">
+  <div class="auth-box green-box" style="max-width:460px">
+    <div class="auth-head green">
+      <span class="icon">👤</span>
+      <h1>CITIZEN ACCESS</h1>
+      <p>OTP VERIFIED · REAL SMS TO YOUR MOBILE</p>
+    </div>
+    <!-- Step 0: Form -->
+    <div class="uauth-step act" id="ua0">
+      <div class="auth-tabs">
+        <button class="atab active green" id="atab-login" onclick="switchUTab('login')">LOGIN</button>
+        <button class="atab" id="atab-reg" onclick="switchUTab('reg')">REGISTER</button>
+      </div>
+      <!-- Login form -->
+      <div id="u-login-form">
+        <label class="f-label">Full Name</label>
+        <input class="f-input" id="ul-name" placeholder="Enter your full name"/>
+        <label class="f-label">Mobile Number (with country code)</label>
+        <input class="f-input" id="ul-phone" placeholder="+91 9876543210" type="tel"/>
+        <button class="f-btn green" onclick="uSendOTP('login')">📱 SEND OTP TO MOBILE</button>
+        <div class="f-err" id="ul-err"></div>
+      </div>
+      <!-- Register form -->
+      <div id="u-reg-form" style="display:none">
+        <label class="f-label">Full Name</label>
+        <input class="f-input" id="ur-name" placeholder="Enter your full name"/>
+        <label class="f-label">Mobile Number (with country code)</label>
+        <input class="f-input" id="ur-phone" placeholder="+91 9876543210" type="tel"/>
+        <label class="f-label">Email (optional)</label>
+        <input class="f-input" id="ur-email" placeholder="your@email.com" type="email"/>
+        <label class="f-label">Address</label>
+        <input class="f-input" id="ur-address" placeholder="City, State"/>
+
+        <!-- Divider -->
+        <div style="display:flex;align-items:center;gap:8px;margin:4px 0 12px">
+          <div style="flex:1;height:1px;background:rgba(57,255,20,.15)"></div>
+          <span style="font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:2px">IDENTITY & VEHICLE</span>
+          <div style="flex:1;height:1px;background:rgba(57,255,20,.15)"></div>
+        </div>
+
+        <label class="f-label">User ID <span style="color:var(--red)">*</span></label>
+        <div style="position:relative;margin-bottom:4px">
+          <input class="f-input green" id="ur-userid" placeholder="Choose a unique ID  e.g. RAVI_2024"
+            oninput="checkUserIdAvailability(this.value)"
+            style="background:rgba(57,255,20,.04);border-color:rgba(57,255,20,.25);color:var(--green);font-family:Orbitron,monospace;font-size:12px;letter-spacing:1px;padding-right:40px"/>
+          <span id="uid-check-icon" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none"></span>
+        </div>
+        <div id="uid-check-msg" style="font-family:Share Tech Mono,monospace;font-size:10px;margin-bottom:12px;min-height:16px"></div>
+
+        <label class="f-label">Vehicle Registration Number <span style="color:var(--muted)">(optional)</span></label>
+        <input class="f-input" id="ur-vehicle" placeholder="e.g. TN38AB1234"
+          oninput="this.value=this.value.toUpperCase()"
+          style="font-family:Orbitron,monospace;font-size:14px;letter-spacing:3px;color:var(--cyan);border-color:rgba(0,229,255,.3)"/>
+
+        <button class="f-btn green" onclick="uSendOTP('reg')">📱 SEND OTP & REGISTER</button>
+        <div class="f-err" id="ur-err"></div>
+      </div>
+    </div>
+    <!-- Step 1: OTP -->
+    <div class="uauth-step" id="ua1">
+      <div class="otp-info">
+        📱 OTP sent to: <strong id="otp-ph">—</strong><br/>
+        <span id="otp-sms-info">Check your mobile for the 6-digit code. Valid for 10 minutes.</span>
+      </div>
+      <div id="demo-otp-box" class="demo-otp-box" style="display:none">
+        🧪 DEMO MODE — OTP: <strong id="demo-otp-val">——</strong> (No API key configured)
+      </div>
+      <div class="sms-status" id="sms-status-row">
+        <div class="sms-dot demo" id="sms-status-dot"></div>
+        <span id="sms-status-text" style="color:var(--muted)">Checking SMS status...</span>
+      </div>
+      <div class="otp-row">
+        <input class="otp-d" id="od0" maxlength="1" oninput="oNext(0)" onkeydown="oBack(event,0)"/>
+        <input class="otp-d" id="od1" maxlength="1" oninput="oNext(1)" onkeydown="oBack(event,1)"/>
+        <input class="otp-d" id="od2" maxlength="1" oninput="oNext(2)" onkeydown="oBack(event,2)"/>
+        <input class="otp-d" id="od3" maxlength="1" oninput="oNext(3)" onkeydown="oBack(event,3)"/>
+        <input class="otp-d" id="od4" maxlength="1" oninput="oNext(4)" onkeydown="oBack(event,4)"/>
+        <input class="otp-d" id="od5" maxlength="1" oninput="oNext(5)" onkeydown="oBack(event,5)"/>
+      </div>
+      <button class="f-btn green" onclick="verifyOTP()">✅ VERIFY OTP</button>
+      <div class="f-err" id="otp-err"></div>
+      <div class="f-ok" id="otp-ok"></div>
+      <div style="text-align:center;margin-top:10px;font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);cursor:pointer" onclick="uSendOTP(_uMode)">🔁 Resend OTP</div>
+    </div>
+    <div class="back-link" onclick="backToPortal()">← BACK TO PORTAL</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAIN APP (ADMIN/POLICE/HOSPITAL/FIRE)
+══════════════════════════════════════════ -->
+<div id="app">
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="tb-logo">VEHICLE<span>SHIELD</span> AI</div>
+      <div class="tb-status"><div class="status-dot"></div><span style="font-size:9px;color:var(--muted)">LIVE</span></div>
+    </div>
+    <div class="tb-alert-ticker">
+      <div class="ticker-inner" id="ticker-text">🔴 VEHICLESHIELD AI ACTIVE — GPS TRACKING ALL REGISTERED VEHICLES &nbsp;&nbsp;&nbsp; 🚨 FRAUD DETECTION ENGINE RUNNING &nbsp;&nbsp;&nbsp; 📡 REAL-TIME EMERGENCY DISPATCH &nbsp;&nbsp;&nbsp; 🛡 ADMIN PORTAL SECURE</div>
+    </div>
+    <div class="tb-right">
+      <div class="tb-clock" id="tb-clock">--:--:--</div>
+      <div class="tb-user">
+        <div class="tb-avatar" id="tb-av">A</div>
+        <div>
+          <div class="tb-uname" id="tb-uname">ADMIN</div>
+          <div class="tb-urole" id="tb-urole">SYSTEM ADMIN</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="staffLogout()">⏏ EXIT</button>
+    </div>
+  </div>
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sb-section">
+        <div class="sb-lbl">Navigation</div>
+        <div class="nav-i act" onclick="switchNav(this,'overview')"><span class="ni">📊</span>Overview</div>
+        <div class="nav-i" onclick="switchNav(this,'map')"><span class="ni">🗺</span>Live Map</div>
+        <div class="nav-i" onclick="switchNav(this,'vehicles')"><span class="ni">🚗</span>Vehicles<span class="nbadge" id="veh-badge">0</span></div>
+        <div class="nav-i" onclick="switchNav(this,'fraud')"><span class="ni">⚠️</span>Fraud Alerts<span class="nbadge" id="fraud-badge">0</span></div>
+        <div class="nav-i" onclick="switchNav(this,'dispatch')"><span class="ni">🚨</span>Dispatch</div>
+        <div class="nav-i" onclick="switchNav(this,'scan')"><span class="ni">🔍</span>Vehicle Scan</div>
+        <div class="nav-i" onclick="switchNav(this,'signals')"><span class="ni">🚦</span>Signals</div>
+        <div class="nav-i" onclick="switchNav(this,'analytics')"><span class="ni">📈</span>Analytics</div>
+        <div class="nav-i" onclick="switchNav(this,'comms')"><span class="ni">📡</span>Comms</div>
+        <div class="nav-i" onclick="switchNav(this,'users')"><span class="ni">👥</span>Citizens</div>
+        <div class="nav-i" onclick="switchNav(this,'settings')"><span class="ni">⚙</span>Settings</div>
+      </div>
+      <div class="sb-section">
+        <div class="sb-lbl">Emergency Units</div>
+        <div id="unit-list"></div>
+      </div>
+    </div>
+
+    <!-- CENTER -->
+    <div class="center">
+      <div class="tab-bar">
+        <div class="tab act" id="tbtn-overview" onclick="showTab('overview')">Overview</div>
+        <div class="tab" id="tbtn-map" onclick="showTab('map')">Live Map</div>
+        <div class="tab" id="tbtn-vehicles" onclick="showTab('vehicles')">GPS Vehicles</div>
+        <div class="tab" id="tbtn-fraud" onclick="showTab('fraud')">Fraud Alerts</div>
+        <div class="tab" id="tbtn-dispatch" onclick="showTab('dispatch')">Dispatch</div>
+        <div class="tab" id="tbtn-scan" onclick="showTab('scan')">Scan Vehicle</div>
+        <div class="tab" id="tbtn-signals" onclick="showTab('signals')">Signals</div>
+        <div class="tab" id="tbtn-analytics" onclick="showTab('analytics')">Analytics</div>
+        <div class="tab" id="tbtn-comms" onclick="showTab('comms')">Comms</div>
+        <div class="tab" id="tbtn-users" onclick="showTab('users')">Citizens</div>
+        <div class="tab" id="tbtn-settings" onclick="showTab('settings')">Settings</div>
+      </div>
+
+      <!-- OVERVIEW -->
+      <div class="tab-content act" id="tab-overview">
+        <div class="stats-g" style="grid-template-columns:repeat(3,1fr)">
+          <div class="stat-c s-red"><div class="stat-v" id="st-active">5</div><div class="stat-l">Active Incidents</div><div class="stat-s">↑ 2 from last hour</div></div>
+          <div class="stat-c s-green"><div class="stat-v" id="st-units">7</div><div class="stat-l">Emergency Units</div><div class="stat-s">GPS live on all units</div></div>
+          <div class="stat-c s-blue"><div class="stat-v" id="st-veh-count">0</div><div class="stat-l">Registered Vehicles</div><div class="stat-s">Citizens tracked</div></div>
+          <div class="stat-c s-amber"><div class="stat-v" id="st-resp">4.2</div><div class="stat-l">Avg Response (min)</div><div class="stat-s">↓ 0.8 min improved</div></div>
+          <div class="stat-c s-violet"><div class="stat-v" id="st-fraud">0</div><div class="stat-l">Fraud Alerts</div><div class="stat-s">Open cases</div></div>
+          <div class="stat-c s-green"><div class="stat-v" id="st-cleared">28</div><div class="stat-l">Routes Cleared</div><div class="stat-s">Today total</div></div>
+        </div>
+        <div>
+          <div class="s-header">
+            <div class="s-title">Active Incidents</div>
+            <button class="add-btn" onclick="openIncModal()">+ NEW INCIDENT</button>
+          </div>
+          <table class="dtbl">
+            <thead><tr><th>ID</th><th>Type</th><th>Location</th><th>Priority</th><th>Status</th><th>Unit</th><th>Time</th><th>Actions</th></tr></thead>
+            <tbody id="inc-body"></tbody>
+          </table>
+        </div>
+        <div>
+          <div class="s-header"><div class="s-title">Location Broadcasts</div></div>
+          <div id="loc-broadcast-panel" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"></div>
+        </div>
+      </div>
+
+      <!-- MAP -->
+      <div class="tab-content" id="tab-map" style="padding:0;overflow:hidden;flex-direction:row">
+        <div id="live-map"></div>
+      </div>
+
+      <!-- VEHICLES GPS -->
+      <div class="tab-content" id="tab-vehicles">
+        <div class="s-header">
+          <div class="s-title">Registered Vehicles — GPS Tracking</div>
+          <button class="add-btn" onclick="document.getElementById('add-veh-modal').classList.add('open')">+ REGISTER VEHICLE</button>
+        </div>
+        <div class="veh-grid" id="veh-grid"></div>
+        <div>
+          <div class="s-header"><div class="s-title">All Registered Vehicles</div></div>
+          <table class="dtbl">
+            <thead><tr><th>Reg No.</th><th>Owner</th><th>Phone</th><th>Type</th><th>Make/Model</th><th>State</th><th>Status</th><th>Verified</th><th>Actions</th></tr></thead>
+            <tbody id="veh-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- FRAUD ALERTS -->
+      <div class="tab-content" id="tab-fraud">
+        <div class="s-header">
+          <div class="s-title">AI Fraud Detection — Active Alerts</div>
+          <button class="add-btn" style="border-color:var(--red);color:var(--red);background:rgba(255,26,60,.06)" onclick="generateRandomFraudAlert()">+ SIMULATE ALERT</button>
+        </div>
+        <div id="fraud-list"></div>
+      </div>
+
+      <!-- DISPATCH -->
+      <div class="tab-content" id="tab-dispatch">
+        <div class="s-header"><div class="s-title">Dispatch Emergency Unit</div></div>
+        <div style="background:var(--card);border:1px solid var(--wire);border-radius:4px;padding:18px">
+          <div class="f-grid">
+            <div class="form-group"><label>Incident Type</label>
+              <select class="f-sel" id="d-type"><option>Medical Emergency</option><option>Road Accident</option><option>Fire Emergency</option><option>Criminal Activity</option><option>Natural Disaster</option><option>Cardiac Arrest</option><option>Flood Rescue</option><option>Riot / Civil Unrest</option></select></div>
+            <div class="form-group"><label>Priority Level</label>
+              <select class="f-sel" id="d-priority"><option value="high">HIGH — Immediate</option><option value="medium">MEDIUM — Urgent</option><option value="low">LOW — Standard</option></select></div>
+          </div>
+          <div class="form-group"><label>Location / Address</label>
+            <input class="f-inp" id="d-loc" placeholder="e.g. 42 Main Blvd, Sector 5"/></div>
+          <div class="f-grid">
+            <div class="form-group"><label>Assign Unit</label>
+              <select class="f-sel" id="d-unit"><option>AMB-07 — Ambulance</option><option>AMB-09 — Ambulance</option><option>POL-12 — Police</option><option>POL-14 — Police</option><option>POL-16 — Police</option><option>FIRE-03 — Fire Engine</option><option>FIRE-05 — Fire Engine</option></select></div>
+            <div class="form-group"><label>Notify Also</label>
+              <select class="f-sel" id="d-notify"><option>Police HQ Only</option><option>Police + Hospital</option><option>All Services</option><option>Hospital Only</option><option>Fire + Police</option></select></div>
+          </div>
+          <div class="f-grid">
+            <div class="form-group"><label>Route</label>
+              <select class="f-sel" id="d-route"><option>Route Alpha — Main Blvd</option><option>Route Beta — Ring Road</option><option>Route Gamma — Highway 7</option><option>Route Delta — North Ave</option></select></div>
+            <div class="form-group"><label>Hospital</label>
+              <select class="f-sel" id="d-hosp"><option>None</option><option>City General Hospital</option><option>St. Mary Medical</option><option>Central Trauma Centre</option></select></div>
+          </div>
+          <div class="form-group"><label>Additional Notes</label>
+            <input class="f-inp" id="d-notes" placeholder="Additional details about the incident..."/></div>
+          <button class="dispatch-btn" onclick="doDispatch()">🚨 DISPATCH UNIT NOW</button>
+        </div>
+      </div>
+
+      <!-- VEHICLE SCAN (POLICE / ADMIN) -->
+      <div class="tab-content" id="tab-scan">
+        <div class="s-header"><div class="s-title">AI Vehicle Scan — Checkpoint Verification</div></div>
+        <div style="background:var(--card);border:1px solid var(--wire);border-radius:4px;padding:18px;margin-bottom:16px">
+          <div style="font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted);margin-bottom:10px;letter-spacing:1px">ENTER VEHICLE REGISTRATION NUMBER TO SCAN & VERIFY</div>
+          <div class="scan-bar">
+            <input class="scan-input" id="scan-reg-input" placeholder="KL07AB1234" maxlength="12" oninput="this.value=this.value.toUpperCase()"/>
+            <button class="scan-btn" onclick="scanVehicle()">🔍 SCAN</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="abtn" onclick="quickScan('KL07AB1234')">KL07AB1234 ✅</button>
+            <button class="abtn" onclick="quickScan('KL10CD5678')">KL10CD5678 ✅</button>
+            <button class="abtn" onclick="quickScan('KL04EF9012')">KL04EF9012 ⚠</button>
+            <button class="abtn amber" onclick="quickScan('KL09XY9999')">KL09XY9999 🚨 FRAUD</button>
+            <button class="abtn red" onclick="quickScan('TN01AB0000')">TN01AB0000 🔴 STOLEN</button>
+          </div>
+        </div>
+        <div id="scan-result-panel"></div>
+        <div>
+          <div class="s-header" style="margin-top:8px"><div class="s-title">Recent Scans Log</div></div>
+          <table class="dtbl">
+            <thead><tr><th>Time</th><th>Reg No.</th><th>Risk</th><th>Result</th><th>Officer</th></tr></thead>
+            <tbody id="scan-log-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SIGNALS -->
+      <div class="tab-content" id="tab-signals">
+        <div class="s-header">
+          <div class="s-title">Traffic Signal Control</div>
+          <button class="add-btn" onclick="clearAllSig()">⚡ CLEAR ALL</button>
+        </div>
+        <div class="sig-grid" id="sig-grid"></div>
+      </div>
+
+      <!-- ANALYTICS -->
+      <div class="tab-content" id="tab-analytics">
+        <div class="stats-g">
+          <div class="chart-wrap"><div class="chart-title">Incidents by Hour</div><canvas id="ch-hourly" height="120"></canvas></div>
+          <div class="chart-wrap"><div class="chart-title">Incident Types</div><canvas id="ch-pie" height="120"></canvas></div>
+          <div class="chart-wrap"><div class="chart-title">Vehicle Types Registered</div><canvas id="ch-veh" height="120"></canvas></div>
+          <div class="chart-wrap"><div class="chart-title">Unit Response Time (min)</div><canvas id="ch-resp" height="120"></canvas></div>
+        </div>
+      </div>
+
+      <!-- COMMS -->
+      <div class="tab-content" id="tab-comms">
+        <div class="s-header"><div class="s-title">Communications</div></div>
+        <div class="comm-feed" id="comm-feed"></div>
+        <div class="comm-row">
+          <input class="comm-input" id="comm-inp" placeholder="Broadcast message to units..." onkeydown="if(event.key==='Enter')sendComm()"/>
+          <button class="comm-send" onclick="sendComm()">SEND</button>
+        </div>
+      </div>
+
+      <!-- CITIZENS / USERS -->
+      <div class="tab-content" id="tab-users">
+        <div class="s-header"><div class="s-title">Registered Citizens — Admin View</div></div>
+        <div id="citizens-table-wrap">
+          <table class="dtbl" id="citizens-tbl">
+            <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Address</th><th>Registered</th><th>Vehicles</th><th>SOS Count</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="citizens-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="tab-content" id="tab-settings">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div style="background:var(--card);border:1px solid var(--wire);border-radius:4px;padding:18px">
+            <div class="s-title" style="margin-bottom:14px">System Settings</div>
+            <div class="setting-row"><div><div class="s-name">Live GPS Tracking</div><div class="s-desc">Continuously track all units & citizen vehicles</div></div><label class="toggle"><input type="checkbox" checked id="set-gps"/><div class="t-slider"></div></label></div>
+            <div class="setting-row"><div><div class="s-name">Auto Signal Clearance</div><div class="s-desc">Auto-clear traffic signals on emergency dispatch</div></div><label class="toggle"><input type="checkbox" checked id="set-sig"/><div class="t-slider"></div></label></div>
+            <div class="setting-row"><div><div class="s-name">Citizen SOS Alerts</div><div class="s-desc">Receive alerts from citizen SOS reports</div></div><label class="toggle"><input type="checkbox" checked id="set-sos"/><div class="t-slider"></div></label></div>
+            <div class="setting-row"><div><div class="s-name">AI Fraud Detection</div><div class="s-desc">Auto-scan vehicles for fraud signals</div></div><label class="toggle"><input type="checkbox" checked id="set-fraud"/><div class="t-slider"></div></label></div>
+            <div class="setting-row"><div><div class="s-name">Auto Hospital Notify</div><div class="s-desc">Auto-notify hospital on medical dispatch</div></div><label class="toggle"><input type="checkbox" checked id="set-hosp"/><div class="t-slider"></div></label></div>
+            <div class="setting-row"><div><div class="s-name">Police Auto-Alert</div><div class="s-desc">Auto-alert police on critical fraud detections</div></div><label class="toggle"><input type="checkbox" checked id="set-police-alert"/><div class="t-slider"></div></label></div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--wire);border-radius:4px;padding:18px">
+            <div class="s-title" style="margin-bottom:14px">Staff Credentials</div>
+            <table class="dtbl">
+              <thead><tr><th>Role</th><th>Username</th><th>Password</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge b-route">ADMIN</span></td><td>admin</td><td>admin123</td></tr>
+                <tr><td><span class="badge b-high">POLICE</span></td><td>police</td><td>police123</td></tr>
+                <tr><td><span class="badge b-med">HOSPITAL</span></td><td>hospital</td><td>hospital123</td></tr>
+                <tr><td><span class="badge b-low">FIRE</span></td><td>fire</td><td>fire123</td></tr>
+              </tbody>
+            </table>
+            <div style="margin-top:14px">
+              <div class="s-title" style="margin-bottom:10px">SMS API Status</div>
+              <div id="settings-sms-status" style="font-family:Share Tech Mono,monospace;font-size:11px;line-height:1.8;color:var(--muted)">
+                Fast2SMS: <span id="sett-sms-key-status">Not configured</span><br/>
+                Mode: <span id="sett-sms-mode">Demo (OTP shown on screen)</span><br/>
+                <br/>
+                <span style="color:var(--cyan)">To enable real SMS:</span><br/>
+                1. Sign up free at <span style="color:var(--cyan)">fast2sms.com</span><br/>
+                2. Go to Dev API → Copy API key<br/>
+                3. Enter key in the banner above<br/>
+                <br/>
+                <span style="color:var(--green)">Fast2SMS free plan: 100 SMS/day</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="rpanel">
+      <div class="rp-section">
+        <div class="rp-title">Live Alerts</div>
+        <button style="width:100%;padding:5px;background:transparent;border:1px solid var(--wire);color:var(--muted);font-family:Share Tech Mono,monospace;font-size:9px;cursor:pointer;border-radius:2px;margin-bottom:8px;transition:all .2s" onclick="document.getElementById('alert-panel').innerHTML=''">CLEAR ALL</button>
+        <div id="alert-panel"></div>
+      </div>
+      <div class="rp-section">
+        <div class="rp-title">Citizen SOS Feed</div>
+        <div id="sos-feed"></div>
+      </div>
+      <div class="rp-section">
+        <div class="rp-title" style="color:var(--red)">Police Fraud Feed</div>
+        <div id="police-fraud-feed"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     USER / CITIZEN DASHBOARD
+══════════════════════════════════════════ -->
+<div id="user-app">
+  <div class="u-topbar">
+    <div class="u-logo">VEHICLE<span style="color:var(--red)">SHIELD</span> <span style="font-size:9px;color:var(--muted);letter-spacing:2px">CITIZEN</span></div>
+    <div style="font-family:Share Tech Mono,monospace;font-size:11px;color:var(--muted)">Welcome, <strong id="u-greeting" style="color:var(--green)">User</strong></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="tb-clock" id="u-clock" style="color:var(--green)">--:--:--</div>
+      <button class="logout-btn" style="border-color:var(--green);color:var(--green)" onclick="userLogout()">⏏ EXIT</button>
+    </div>
+  </div>
+  <div class="u-body">
+    <!-- LEFT -->
+    <div class="u-left">
+      <div class="u-card u-welcome" style="padding:12px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <h2 style="font-size:13px;margin-bottom:3px">👋 Hello, <span id="u-name-h">User</span></h2>
+            <p style="font-size:10px;margin:0;color:var(--muted)">VehicleShield AI · Location tracked · Emergency services ready</p>
+          </div>
+          <div style="text-align:right;font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted)">
+            <div>ID: <span id="u-uid-display" style="color:var(--cyan)">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMERGENCY QUICK ACTIONS -->
+      <div class="u-card">
+        <div class="rp-title" style="margin-bottom:12px;color:var(--green)">⚡ Emergency Quick Actions</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="qbtn sos-btn" onclick="triggerEmergency('sos')" style="padding:22px 8px">
+            <span class="qbtn-icon" style="font-size:40px">🆘</span>
+            <div class="qbtn-label" style="font-size:13px;margin-top:8px">SOS</div>
+            <div class="qbtn-sub" style="font-size:10px;margin-top:4px">Immediate help — All services alerted</div>
+          </div>
+          <div class="qbtn" onclick="triggerEmergency('flood')" style="padding:22px 8px;border-color:rgba(0,229,255,.4);background:rgba(0,229,255,.04)">
+            <span class="qbtn-icon" style="font-size:40px">🌊</span>
+            <div class="qbtn-label" style="font-size:13px;margin-top:8px;color:var(--cyan)">Flood / Disaster</div>
+            <div class="qbtn-sub" style="font-size:10px;margin-top:4px">NDRF rescue team dispatch</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMERGENCY RESPONSE PANEL (shows after action) -->
+      <div id="emer-response-panel" style="display:none">
+        <div class="u-card" style="border-color:rgba(57,255,20,.3);background:rgba(57,255,20,.04)">
+          <div class="ai-pulse"><div class="ai-pulse-dot"></div><div class="ai-pulse-dot"></div><div class="ai-pulse-dot"></div><span style="font-family:Orbitron,monospace;font-size:10px;color:var(--green);letter-spacing:2px;margin-left:6px">AI RESPONSE ACTIVATED</span></div>
+          <div class="emer-ai-title" id="emer-ai-action"></div>
+          <div id="emer-ai-steps"></div>
+          <div style="margin-top:10px;padding:8px;background:rgba(57,255,20,.07);border:1px solid rgba(57,255,20,.2);border-radius:3px;font-family:Share Tech Mono,monospace;font-size:10px;color:var(--muted)">
+            📍 Your location: <span id="emer-loc-text" style="color:var(--cyan)">Acquiring...</span>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px">
+            <button class="f-btn green" style="padding:8px;font-size:9px" onclick="document.getElementById('emer-response-panel').style.display='none'">✅ ACKNOWLEDGED</button>
+            <button class="f-btn amber" style="padding:8px;font-size:9px;background:linear-gradient(135deg,#5a3800,var(--amber));color:#1a0e00" onclick="cancelEmergency()">✕ CANCEL</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOS INTERFACE -->
+      <div class="u-card">
+        <div class="rp-title" style="margin-bottom:12px;color:var(--green)">📡 Emergency Communication</div>
+        <div class="sos-modes">
+          <button class="smode act" id="sm-text" onclick="switchSM('text')">⌨️ Text</button>
+          <button class="smode" id="sm-voice" onclick="switchSM('voice')">🎙️ Voice</button>
+        </div>
+        <div class="sos-pane act" id="sp-text">
+          <textarea class="sos-ta" id="sos-ta" placeholder="Describe your emergency clearly... Include location details if possible."></textarea>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="sos-send" onclick="sendUserSOS()">🚨 SEND ALERT</button>
+            <button style="background:transparent;border:1px solid var(--wire);color:var(--muted);padding:10px 14px;cursor:pointer;border-radius:3px;font-family:Share Tech Mono,monospace;font-size:10px" onclick="document.getElementById('sos-ta').value='';document.getElementById('u-sos-resp').classList.remove('act')">Clear</button>
+          </div>
+        </div>
+        <div class="sos-pane" id="sp-voice">
+          <div class="mic-wrap">
+            <div class="mic-stat" id="mic-stat">Press microphone to speak</div>
+            <div class="mic-btn" id="mic-btn" onclick="toggleMic()">🎙️</div>
+            <div class="v-transcript" id="v-trans">Your speech will appear here...</div>
+            <button class="sos-send" onclick="sendVoiceSOS()">🚨 SEND VOICE ALERT</button>
+          </div>
+        </div>
+        <div class="sos-resp" id="u-sos-resp">
+          <div class="sor-title">✅ EMERGENCY SERVICES NOTIFIED</div>
+          <div class="sor-body" id="u-sos-resp-body"></div>
+        </div>
+      </div>
+
+      <!-- LIVE EMERGENCY MAP PANEL -->
+      <div class="u-card" style="padding:0;overflow:hidden;border-color:rgba(0,229,255,.3)">
+        <!-- Map header bar -->
+        <div style="padding:10px 14px;background:linear-gradient(90deg,rgba(0,229,255,.08),rgba(0,229,255,.03));border-bottom:1px solid rgba(0,229,255,.2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="pulsing-dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></div>
+            <span style="font-family:Orbitron,monospace;font-size:11px;font-weight:700;color:var(--cyan);letter-spacing:2px">LIVE EMERGENCY MAP</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <div id="gps-accuracy-badge" style="font-family:Share Tech Mono,monospace;font-size:9px;padding:2px 10px;border-radius:10px;background:rgba(57,255,20,.1);border:1px solid rgba(57,255,20,.3);color:var(--green)">● ACQUIRING GPS</div>
+            <button onclick="dispatchNearestAmbulance()" style="background:linear-gradient(135deg,#7a0010,var(--red));border:none;color:#fff;padding:5px 12px;cursor:pointer;font-family:Orbitron,monospace;font-size:9px;font-weight:700;letter-spacing:1px;border-radius:3px;transition:all .3s;animation:redpulse 2s ease-in-out infinite">🚑 DISPATCH AMBULANCE</button>
+          </div>
+        </div>
+
+        <!-- The full map -->
+        <div id="u-map" style="height:420px;width:100%"></div>
+
+        <!-- Map bottom info strip -->
+        <div style="padding:10px 14px;background:rgba(0,0,0,.4);border-top:1px solid var(--wire);display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div style="text-align:center">
+            <div style="font-family:Share Tech Mono,monospace;font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:2px">YOUR LOCATION</div>
+            <div id="gps-coord-strip" style="font-family:Orbitron,monospace;font-size:9px;color:var(--cyan)">Acquiring…</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-family:Share Tech Mono,monospace;font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:2px">NEAREST AMBULANCE</div>
+            <div id="nearest-amb-strip" style="font-family:Orbitron,monospace;font-size:9px;color:var(--red)">AMB-07</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-family:Share Tech Mono,monospace;font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:2px">ETA TO YOU</div>
+            <div id="eta-strip" style="font-family:Orbitron,monospace;font-size:9px;color:var(--amber)">—</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-family:Share Tech Mono,monospace;font-size:8px;color:var(--muted);letter-spacing:1px;margin-bottom:2px">HOSPITAL ETA</div>
+            <div id="hosp-eta-strip" style="font-family:Orbitron,monospace;font-size:9px;color:var(--green)">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DISPATCHED UNITS CARDS -->
+      <div id="dispatch-cards-wrap" style="display:none">
+        <div style="font-family:Orbitron,monospace;font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:8px">▶ DISPATCHED UNITS</div>
+        <div id="dispatch-cards" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+
+    </div><!-- /u-left -->
+
+    <!-- RIGHT PANEL -->
+    <div class="u-right">
+
+      <!-- GPS COORDINATES CARD -->
+      <div class="u-loc-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="rp-title" style="color:var(--green);margin-bottom:0">📍 Live GPS</div>
+          <div class="pulsing-dot"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+          <div style="background:rgba(0,0,0,.4);border:1px solid var(--wire);border-radius:3px;padding:8px">
+            <div style="font-family:Share Tech Mono,monospace;font-size:7px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">LATITUDE</div>
+            <div id="gps-lat" style="font-family:Orbitron,monospace;font-size:10px;color:var(--cyan)">—</div>
+          </div>
+          <div style="background:rgba(0,0,0,.4);border:1px solid var(--wire);border-radius:3px;padding:8px">
+            <div style="font-family:Share Tech Mono,monospace;font-size:7px;color:var(--muted);letter-spacing:1px;margin-bottom:3px">LONGITUDE</div>
+            <div id="gps-lng" style="font-family:Orbitron,monospace;font-size:10px;color:var(--cyan)">—</div>
+          </div>
+        </div>
+        <div class="u-loc-info" id="u-loc-info" style="margin-bottom:10px"><span class="pulsing-dot"></span>Acquiring signal…</div>
+        <button class="share-loc-btn" id="share-loc-btn" onclick="toggleShareLoc()">📡 SHARE LOCATION WITH EMERGENCY</button>
+      </div>
+
+      <!-- NEARBY EMERGENCY UNITS -->
+      <div class="u-card">
+        <div class="rp-title" style="margin-bottom:10px">🚨 Nearby Units</div>
+        <div id="nearby-units"></div>
+      </div>
+
+      <!-- ROUTE & TRAFFIC INFO -->
+      <div class="u-card" id="route-info-card" style="display:none;border-color:rgba(255,26,60,.3)">
+        <div class="rp-title" style="margin-bottom:10px;color:var(--red)">🗺 Active Route</div>
+        <div id="route-info-body" style="font-family:Share Tech Mono,monospace;font-size:11px;line-height:1.8;color:var(--text)"></div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="u-card">
+        <div class="rp-title" style="margin-bottom:12px">My Profile</div>
+        <div class="u-prof">
+          <div class="u-av" id="u-av">U</div>
+          <div class="u-info">
+            <h3 id="u-prof-name">User</h3>
+            <p id="u-prof-phone">📱 ---</p>
+            <p id="u-prof-email">📧 ---</p>
+            <div style="margin-top:6px;font-family:Share Tech Mono,monospace;font-size:9px;color:var(--muted);letter-spacing:1px">USER ID</div>
+            <div id="u-prof-id" style="font-family:Orbitron,monospace;font-size:10px;color:var(--cyan);letter-spacing:1px">—</div>
+            <span class="u-badge" style="margin-top:6px">✅ VERIFIED CITIZEN</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- hidden stubs to keep old JS references alive -->
+<div id="reg-user-id" style="display:none"></div>
+<div id="reg-owner-name" style="display:none"></div>
+<div id="my-vehicles-list" style="display:none"></div>
+
+<!-- INCIDENT MODAL -->
+<div class="modal" id="inc-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('inc-modal')">✕</button>
+    <h3>LOG NEW INCIDENT</h3>
+    <div class="f-grid">
+      <div class="form-group"><label>Type</label><select class="f-sel" id="m-type"><option>Medical Emergency</option><option>Road Accident</option><option>Fire Emergency</option><option>Criminal Activity</option><option>Natural Disaster</option><option>Flood Rescue</option></select></div>
+      <div class="form-group"><label>Priority</label><select class="f-sel" id="m-priority"><option value="high">HIGH</option><option value="medium">MEDIUM</option><option value="low">LOW</option></select></div>
+    </div>
+    <div class="form-group"><label>Location</label><input class="f-inp" id="m-loc" placeholder="Address or area"/></div>
+    <div class="form-group"><label>Unit</label><select class="f-sel" id="m-unit"><option>AMB-07</option><option>AMB-09</option><option>POL-12</option><option>POL-14</option><option>FIRE-03</option></select></div>
+    <button class="f-btn cyan" onclick="addIncFromModal()">LOG INCIDENT</button>
+  </div>
+</div>
+
+<!-- ADD VEHICLE MODAL (Admin) -->
+<div class="modal" id="add-veh-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal('add-veh-modal')">✕</button>
+    <h3>REGISTER NEW VEHICLE</h3>
+    <div class="f-grid">
+      <div class="form-group"><label>Registration No.</label><input class="f-inp" id="av-reg" placeholder="KL07AB1234" oninput="this.value=this.value.toUpperCase()"/></div>
+      <div class="form-group"><label>Owner Name</label><input class="f-inp" id="av-owner" placeholder="Full name"/></div>
+    </div>
+    <div class="f-grid">
+      <div class="form-group"><label>Owner Phone</label><input class="f-inp" id="av-phone" placeholder="+919876543210"/></div>
+      <div class="form-group"><label>Vehicle Type</label><select class="f-sel" id="av-type"><option value="car">Car</option><option value="bike">Bike</option><option value="truck">Truck</option><option value="bus">Bus</option><option value="auto">Auto</option></select></div>
+    </div>
+    <div class="f-grid">
+      <div class="form-group"><label>Make</label><input class="f-inp" id="av-make" placeholder="Toyota"/></div>
+      <div class="form-group"><label>Model</label><input class="f-inp" id="av-model" placeholder="Innova"/></div>
+    </div>
+    <div class="f-grid">
+      <div class="form-group"><label>Year</label><input class="f-inp" id="av-year" placeholder="2022" type="number"/></div>
+      <div class="form-group"><label>Color</label><input class="f-inp" id="av-color" placeholder="White"/></div>
+    </div>
+    <div class="f-grid">
+      <div class="form-group"><label>State</label><input class="f-inp" id="av-state" placeholder="Kerala" value="Kerala"/></div>
+      <div class="form-group"><label>Status</label><select class="f-sel" id="av-status"><option value="active">Active</option><option value="flagged">Flagged</option><option value="stolen">Stolen</option><option value="suspended">Suspended</option></select></div>
+    </div>
+    <button class="f-btn cyan" onclick="adminAddVehicle()">REGISTER VEHICLE</button>
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
